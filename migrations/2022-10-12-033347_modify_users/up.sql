@@ -1,0 +1,4 @@
+-- Your SQL goes here
+ALTER TABLE users ADD email VARCHAR NOT NULL;
+ALTER TABLE users ADD first_name VARCHAR NOT NULL;
+ALTER TABLE users ADD last_name VARCHAR NOT NULL;

@@ -1,0 +1,38 @@
+[package]
+name = "pms-backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+toml = "0.5.9"
+pms-master = { git = "https://github.com/pms-oj/pms-master" }
+judge-protocol = { git = "https://github.com/pms-oj/judge-protocol" }
+async-std = { version = "1.12.0", features = ["attributes"] }
+log = "0.4.17"
+lazy_static = "1.4.0"
+serde = { version = "1.0", features = ["derive"] }
+actix-web = "4.2.1"
+actix-identity = "0.5.2"
+actix-session = { version = "0.7.2", features = ["redis-rs-session"] }
+log4rs = "1.1.1"
+diesel = { version = "2.0.0", features = ["postgres", "uuid", "chrono"] }
+ckydb = { version = "0.0.5" }
+sha3 = "0.10.5"
+hex = "0.4.3"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = { version = "0.6", features = ["serde"] }
+lcid = { git = "https://github.com/pms-oj/lcid-rs.git" }
+
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "serde",
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+]
+
+[dev-dependencies]
+env_logger = "0.9.1"

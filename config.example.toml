@@ -1,0 +1,16 @@
+[host]
+host = "127.0.0.1:3030"
+host_pass = "asdf"
+
+[web]
+host = "127.0.0.1:3031"
+
+[database]
+url = "postgres://ubuntu:ubuntu@localhost/pms"
+
+[redis]
+url = "redis://127.0.0.1:6379"
+
+[general]
+default_language = "aea02f71-ab0d-470e-9d0d-3577ec870e29"
+timezone = "Asia/Seoul"

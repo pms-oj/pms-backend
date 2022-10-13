@@ -1,0 +1,11 @@
+pub const CHECKER: &'static str = "checker";
+pub const GRADERS: &'static str = "graders";
+pub const TESTS: &'static str = "tests";
+pub const SUBTASKS: &'static str = "subtasks";
+pub const STATEMENTS: &'static str = "statements";
+pub const ATTACHMENTS: &'static str = "attachments";
+pub const STATEMENT_FILE: &'static str = "statement";
+pub const TASK_TOML: &'static str = "task.toml";
+pub const GRADER_TOML: &'static str = "grader.toml";
+pub const CHECKER_TOML: &'static str = "checker.toml";
+pub const STATEMENT_TOML: &'static str = "statement.toml";

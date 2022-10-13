@@ -1,0 +1,10 @@
+name = "Task"
+code = "example"
+task_type = "Communication"
+time_limit = 1.0
+memory_limit = 1024000
+score_precision = 2
+description = "an example task for PMS"
+
+[task_type_params]
+num_processes = 2
