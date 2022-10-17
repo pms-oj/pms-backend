@@ -4,6 +4,12 @@ appenders:
   stdout:
     kind: console
 
+  file:
+    kind: file
+    path: "log/pms.log"
+    encoder:
+      pattern: "{d} - [pms] {m}{n}"
+
   file_backend:
     kind: file
     path: "log/pms-backend.log"
@@ -17,13 +23,16 @@ appenders:
       pattern: "{d} - [pms-master] {m}{n}"
 
 root:
-  level: debug
+  level: info
   appenders:
-    - file_backend
+    - file
 
 loggers:
   pms_master:
     level: debug
     appenders:
       - file_master
-    
+  pms-backend:
+    level: debug
+    appenders:
+      - file_backend

@@ -1,10 +1,23 @@
-use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 use chrono_tz::Tz;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::schema::*;
+
+#[derive(Clone, Debug, Insertable)]
+#[table_name = "users"]
+pub struct NewUser {
+    pub id: String,
+    pub pass: String,
+    pub permission: i32,
+    pub timezone: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub preferred_language: Uuid,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Insertable, Queryable)]
 #[table_name = "users"]
@@ -16,7 +29,7 @@ pub struct User {
     pub first_name: String,
     pub last_name: String,
     pub email: String,
-    pub preferred_language: String,
+    pub preferred_language: Uuid,
     pub pk: Uuid,
 }
 

@@ -1,18 +1,18 @@
-use async_std::path::PathBuf;
-use async_std::io;
 use async_std::fs::*;
+use async_std::io;
+use async_std::path::PathBuf;
 use async_std::stream::StreamExt;
+use lcid::LanguageId;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use uuid::Uuid;
-use lcid::LanguageId;
 
-use super::*;
-use super::graders::*;
-use super::subtasks::*;
-use super::constants::*;
-use super::statements::*;
 use super::checker::*;
+use super::constants::*;
+use super::graders::*;
+use super::statements::*;
+use super::subtasks::*;
+use super::*;
 use crate::judge::*;
 
 #[derive(Clone, Debug)]
@@ -70,9 +70,7 @@ pub async fn load_task(path: PathBuf) -> io::Result<TaskLoader> {
                     CHECKER => {
                         checker_loader = Some(load_checker(entry.path()).await?);
                     }
-                    SUBTASKS => {
-                        subtask_loader = Some(load_subtasks(entry.path()).await?)
-                    }
+                    SUBTASKS => subtask_loader = Some(load_subtasks(entry.path()).await?),
                     GRADERS => {
                         grader_loader = Some(load_graders(entry.path()).await?);
                     }
@@ -88,17 +86,29 @@ pub async fn load_task(path: PathBuf) -> io::Result<TaskLoader> {
         }
     }
     debug!("{:?}", task.clone());
-    if let (Some(task), Some(checker), Some(subtasks), Some(graders), Some(statements), Some(attachments)) = (task, checker_loader, subtask_loader, grader_loader, statement_loader, attachments) {
-        Ok(
-            TaskLoader {
-                task,
-                checker,
-                subtasks,
-                graders,
-                statements,
-                attachments
-            }
-        )
+    if let (
+        Some(task),
+        Some(checker),
+        Some(subtasks),
+        Some(graders),
+        Some(statements),
+        Some(attachments),
+    ) = (
+        task,
+        checker_loader,
+        subtask_loader,
+        grader_loader,
+        statement_loader,
+        attachments,
+    ) {
+        Ok(TaskLoader {
+            task,
+            checker,
+            subtasks,
+            graders,
+            statements,
+            attachments,
+        })
     } else {
         Err(io::Error::from(io::ErrorKind::NotFound))
     }
@@ -117,17 +127,14 @@ pub async fn load_statements(path: PathBuf) -> io::Result<StatementLoader> {
                 if let Ok(lang) = TryInto::<&LanguageId>::try_into(name.clone()) {
                     let statement_path = entry.path().join(STATEMENT_TOML);
                     let f = read_to_string(statement_path).await?;
-                    let statement: Statement = toml::from_str(&f).expect("Cannot read statement.toml");
+                    let statement: Statement =
+                        toml::from_str(&f).expect("Cannot read statement.toml");
                     statements.insert(lang.clone(), (statement, entry.path()));
                 }
             }
         }
     }
-    Ok(
-        StatementLoader {
-            statements,
-        }
-    )
+    Ok(StatementLoader { statements })
 }
 
 pub async fn load_subtasks(path: PathBuf) -> io::Result<SubtaskLoader> {
@@ -143,19 +150,25 @@ pub async fn load_subtasks(path: PathBuf) -> io::Result<SubtaskLoader> {
                 let mut tests = vec![];
                 for x in subtask.testcases.clone() {
                     tests.push(Test {
-                        stdin: path.parent().unwrap().join(TESTS).join(x.clone()).with_extension("in"),
-                        stdout: path.parent().unwrap().join(TESTS).join(x.clone()).with_extension("out"),
+                        stdin: path
+                            .parent()
+                            .unwrap()
+                            .join(TESTS)
+                            .join(x.clone())
+                            .with_extension("in"),
+                        stdout: path
+                            .parent()
+                            .unwrap()
+                            .join(TESTS)
+                            .join(x.clone())
+                            .with_extension("out"),
                     });
                 }
                 subtasks.insert(subtask.name.clone(), (subtask, tests));
             }
         }
     }
-    Ok(
-        SubtaskLoader {
-            subtasks,
-        }
-    )
+    Ok(SubtaskLoader { subtasks })
 }
 
 pub async fn load_checker(path: PathBuf) -> io::Result<CheckerLoader> {
@@ -178,16 +191,14 @@ pub async fn load_checker(path: PathBuf) -> io::Result<CheckerLoader> {
     }
     if let Some(checker) = checker {
         let checker_path = path.join(checker.checker_file.clone());
-            if checker_path.is_file().await {
-                Ok(
-                    CheckerLoader {
-                        checker,
-                        checker_file: checker_path,
-                    }
-                )
-            } else {
-                Err(io::Error::from(io::ErrorKind::NotFound))
-            }
+        if checker_path.is_file().await {
+            Ok(CheckerLoader {
+                checker,
+                checker_file: checker_path,
+            })
+        } else {
+            Err(io::Error::from(io::ErrorKind::NotFound))
+        }
     } else {
         Err(io::Error::from(io::ErrorKind::NotFound))
     }
@@ -222,24 +233,20 @@ pub async fn load_graders(path: PathBuf) -> io::Result<GraderLoader> {
         if let Some(manager) = grader.manager_file.clone() {
             let manager_path = path.join(manager);
             if manager_path.is_file().await {
-                Ok(
-                    GraderLoader {
-                        grader,
-                        manager_file: Some(manager_path),
-                        graders,
-                    }
-                )
+                Ok(GraderLoader {
+                    grader,
+                    manager_file: Some(manager_path),
+                    graders,
+                })
             } else {
                 Err(io::Error::from(io::ErrorKind::NotFound))
             }
         } else {
-            Ok(
-                GraderLoader {
-                    grader,
-                    manager_file: None,
-                    graders,
-                }
-            )
+            Ok(GraderLoader {
+                grader,
+                manager_file: None,
+                graders,
+            })
         }
     } else {
         Err(io::Error::from(io::ErrorKind::NotFound))

@@ -1,13 +1,13 @@
+pub mod checker;
 pub mod constants;
 pub mod graders;
-pub mod checker;
+pub mod loader;
 pub mod statements;
 pub mod subtasks;
-pub mod loader;
 
 pub use loader::*;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // implementation of https://cms.readthedocs.io/en/v1.4/Task%20types.html
 #[derive(Clone, Debug, Serialize, Deserialize)]

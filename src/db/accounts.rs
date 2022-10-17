@@ -25,3 +25,22 @@ pub fn login(id: String, pass: String) -> QueryResult<(AccountError, Uuid)> {
         Ok((AccountError::UserNotExists, Uuid::nil()))
     }
 }
+
+pub fn find_user(pk: Uuid) -> QueryResult<User> {
+    let mut db = establish_connection();
+    users::table.find(pk).first(&mut db)
+}
+
+pub fn by_id(id: String) -> QueryResult<User> {
+    let mut db = establish_connection();
+    users::table
+        .filter(users::dsl::id.eq(id))
+        .first::<User>(&mut db)
+}
+
+pub fn register(form: NewUser) -> QueryResult<User> {
+    let mut db = establish_connection();
+    diesel::insert_into(users::table)
+        .values(&form)
+        .get_result(&mut db)
+}

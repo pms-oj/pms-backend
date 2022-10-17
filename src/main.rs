@@ -4,36 +4,43 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate thiserror;
+
 mod api;
 mod config;
 mod constants;
+mod contests;
 mod db;
-mod master;
+mod judge;
 mod middlewares;
 mod tasks;
-mod contests;
-mod judge;
 
 #[cfg(test)]
 mod tests;
 
-use actix_web::{cookie::Key, middleware, web, App, HttpServer};
+use actix::dev::ToEnvelope;
+use actix::prelude::*;
 use actix_identity::IdentityMiddleware;
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
+use actix_web::{cookie::Key, guard, middleware, web, App, HttpServer};
+use async_graphql::*;
 use async_std::channel::{unbounded, Sender};
 use async_std::sync::{Arc, Mutex};
 use async_std::task::spawn;
 use ckydb::{connect, Controller};
 use judge_protocol::judge::*;
 use log::*;
-use pms_master::handler::{serve, HandlerMessage};
+use pms_master::event::*;
+use pms_master::handler::*;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use uuid::Uuid;
 
 use crate::config::*;
 use crate::constants::*;
-use crate::master::master_handler;
+use crate::db::keydb::*;
+use crate::judge::*;
 
 lazy_static! {
     static ref CONFIG: Config = {
@@ -44,51 +51,68 @@ lazy_static! {
 }
 
 #[derive(Clone)]
-pub struct WebState {
-    handler_tx: Sender<HandlerMessage>,
-}
-
-#[derive(Clone, Debug)]
-pub struct JudgeMan {
-    judge_tx: HashMap<Uuid, Sender<JudgeState>>,
+pub struct WebState<T>
+where
+    T: Actor + Handler<EventMessage>,
+    <T as actix::Actor>::Context: ToEnvelope<T, EventMessage>,
+{
+    handler_addr: Addr<HandlerService<T>>,
 }
 
 #[derive(Clone)]
-pub struct WebData<T: Controller> {
-    state: WebState,
-    judge_man: Arc<Mutex<JudgeMan>>,
-    judge_db: Arc<Mutex<T>>,
-    source_db: Arc<Mutex<T>>,
+pub struct WebData<T: Controller + Unpin + 'static, U>
+where
+    U: Actor + Handler<EventMessage>,
+    <U as actix::Actor>::Context: ToEnvelope<U, EventMessage>,
+{
+    state: WebState<U>,
+    judge_addr: Addr<JudgeService>,
+    source_db: Addr<KeyDbService<T>>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     log4rs::init_file(LOG_CONFIG_FILE, Default::default()).unwrap();
     info!("pms-backend {}", env!("CARGO_PKG_VERSION"));
-    let judge_db = connect(JUDGE_DATABASE, MAX_FILE_SIZE_KB, VACUUM_INTERVAL_SEC)?;
-    let source_db = connect(SOURCE_DATABASE, MAX_FILE_SIZE_KB, VACUUM_INTERVAL_SEC)?;
+    let source_db = KeyDbService::start(connect(
+        SOURCE_DATABASE,
+        MAX_FILE_SIZE_KB,
+        VACUUM_INTERVAL_SEC,
+    )?);
     let master_cfg = pms_master::config::Config {
         host: CONFIG.host.host.clone(),
         host_pass: CONFIG.host.host_pass.clone(),
     };
-    let (event_tx, event_rx) = unbounded();
-    let handler_tx = serve(master_cfg, event_tx).await;
-    let state = WebState {
-        handler_tx: handler_tx.clone(),
+    let judge_man = JudgeMan {
+        judge_addrs: HashMap::new(),
     };
-    let judge_man = Arc::new(Mutex::new(JudgeMan {
-        judge_tx: HashMap::new(),
-    }));
+    let judge_service = JudgeService {
+        judge_man,
+        handler_addr: None,
+    };
+    let judge_addr = judge_service.start();
+    let handler_service = HandlerService {
+        cfg: master_cfg,
+        event_addr: judge_addr.clone(),
+        state: None,
+    };
+    let handler_addr = handler_service.start();
+    judge_addr
+        .send(JudgeMessage::RegisterHandler(handler_addr.clone()))
+        .await
+        .ok();
+    let state = WebState { handler_addr };
     let data = Arc::new(WebData {
         state,
-        judge_man: judge_man.clone(),
-        judge_db: Arc::new(Mutex::new(judge_db)),
-        source_db: Arc::new(Mutex::new(source_db)),
+        judge_addr: judge_addr,
+        source_db,
     });
-    spawn(async move {
-        info!("starting master handler");
-        master_handler(judge_man, handler_tx, event_rx).await;
-    });
+    if CONFIG.web.enable_gql_playground {
+        info!(
+            "GraphiQL IDE is arrived: http://{}/api/gql_playground",
+            CONFIG.web.host.clone()
+        );
+    }
     let secret_key = Key::generate();
     let redis_store = RedisSessionStore::new(CONFIG.redis.url.clone())
         .await
@@ -100,20 +124,32 @@ async fn main() -> std::io::Result<()> {
             .wrap(IdentityMiddleware::default())
             .wrap(SessionMiddleware::new(
                 redis_store.clone(),
-                secret_key.clone()
+                secret_key.clone(),
             ))
             .service(
                 web::scope("/api")
-                .service(
-                    web::scope("/accounts")
-                    .service(api::accounts::login)
-                    .service(api::accounts::get_self)
-                    .service(api::accounts::delete_self)
-                )
-                .service(
-                    web::scope("/handshake")
-                    .service(api::handshake::ping)
-                )
+                    .app_data(web::Data::new(Schema::new(
+                        api::graphql::QueryRoot,
+                        api::graphql::Mutation,
+                        EmptySubscription,
+                    )))
+                    .service(
+                        web::scope("/accounts")
+                            .service(api::accounts::login)
+                            .service(api::accounts::get_self)
+                            .service(api::accounts::delete_self),
+                    )
+                    .service(web::scope("/handshake").service(api::handshake::ping))
+                    .service(
+                        web::resource("/gql")
+                            .guard(guard::Any(guard::Post()).or(guard::Get()))
+                            .to(api::graphql::gql_endpoint),
+                    )
+                    .service(
+                        web::resource("/gql_playground")
+                            .guard(guard::Get())
+                            .to(api::graphql::gql_playground),
+                    ),
             )
     })
     .bind(CONFIG.web.host.clone())?

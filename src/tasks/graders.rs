@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 // * note that for some notations
@@ -22,5 +22,5 @@ pub struct Grader {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Stub {
-    pub object_file: String, 
+    pub object_file: String,
 }

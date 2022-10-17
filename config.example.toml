@@ -4,6 +4,7 @@ host_pass = "asdf"
 
 [web]
 host = "127.0.0.1:3031"
+enable_gql_playground = true
 
 [database]
 url = "postgres://ubuntu:ubuntu@localhost/pms"

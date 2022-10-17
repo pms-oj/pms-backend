@@ -78,7 +78,7 @@ diesel::table! {
         email -> Varchar,
         first_name -> Varchar,
         last_name -> Varchar,
-        preferred_language -> Varchar,
+        preferred_language -> Uuid,
         pk -> Uuid,
     }
 }
