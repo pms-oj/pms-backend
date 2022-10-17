@@ -4,11 +4,11 @@ appenders:
   stdout:
     kind: console
 
-  file:
+  file_web:
     kind: file
-    path: "log/pms.log"
+    path: "log/web.log"
     encoder:
-      pattern: "{d} - [pms] {m}{n}"
+      pattern: "{d} - [web] {m}{n}"
 
   file_backend:
     kind: file
@@ -22,17 +22,16 @@ appenders:
     encoder:
       pattern: "{d} - [pms-master] {m}{n}"
 
-root:
-  level: info
-  appenders:
-    - file
-
 loggers:
+  actix_web:
+    level: debug
+    appenders:
+      - file_web
   pms_master:
     level: debug
     appenders:
       - file_master
-  pms-backend:
+  pms_backend:
     level: debug
     appenders:
       - file_backend
