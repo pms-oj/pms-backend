@@ -4,19 +4,26 @@ use crate::api::accounts::*;
 use crate::api::ResponseBlock;
 use crate::db::accounts::*;
 use crate::db::models::NewUser;
-use crate::CONFIG;
+use crate::judge::{api::*, JudgeService, SubscribeMessage};
+use crate::{APPDATA, CONFIG};
 
 use accounts::*;
 
 use actix_identity::Identity;
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
+use async_graphql::futures_util::FutureExt;
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use async_graphql::*;
-use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
+use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
+use futures_util::{Stream, StreamExt};
 use sha3::{Digest, Sha3_256};
 use uuid::Uuid;
 
+pub struct Mutation;
 pub struct QueryRoot;
+pub struct SubscriptionRoot;
+
+pub type GqlSchema = Schema<QueryRoot, Mutation, SubscriptionRoot>;
 
 pub async fn gql_playground() -> HttpResponse {
     if CONFIG.web.enable_gql_playground {
@@ -31,7 +38,7 @@ pub async fn gql_playground() -> HttpResponse {
 }
 
 pub async fn gql_endpoint(
-    schema: web::Data<Schema<QueryRoot, Mutation, EmptySubscription>>,
+    schema: web::Data<GqlSchema>,
     user: Option<Identity>,
     gql_req: GraphQLRequest,
 ) -> GraphQLResponse {
@@ -42,9 +49,27 @@ pub async fn gql_endpoint(
     schema.execute(gql_req).await.into()
 }
 
+pub async fn gql_ws_endpoint(
+    schema: web::Data<GqlSchema>,
+    user: Option<Identity>,
+    req: HttpRequest,
+    payload: web::Payload,
+) -> actix_web::Result<HttpResponse> {
+    let mut gql_subscription = GraphQLSubscription::new(Schema::clone(&*schema));
+    let mut data = async_graphql::Data::default();
+    if let Some(user) = user {
+        data.insert(user.id().unwrap());
+    }
+    gql_subscription = gql_subscription.with_data(data);
+    gql_subscription.start(&req, payload)
+}
+
 #[Object]
 impl QueryRoot {
-    async fn info<'ctx>(&self, ctx: &'ctx Context<'_>) -> Result<UserGql, AccountError> {
+    async fn info<'ctx>(
+        &self,
+        ctx: &'ctx async_graphql::Context<'_>,
+    ) -> Result<UserGql, AccountError> {
         if let Some(pk) = ctx.data_opt::<String>() {
             let pk = pk.parse::<Uuid>().unwrap();
             let from_db = find_user(pk).unwrap();
@@ -63,8 +88,6 @@ impl QueryRoot {
         }
     }
 }
-
-pub struct Mutation;
 
 #[Object]
 impl Mutation {
@@ -104,5 +127,27 @@ impl Mutation {
                 },
             }
         }
+    }
+}
+
+#[Subscription]
+impl SubscriptionRoot {
+    async fn interval(&self, #[graphql(default = 1)] n: i32) -> impl Stream<Item = i32> {
+        let mut value = 0;
+        async_stream::stream! {
+            loop {
+                async_std::task::sleep(std::time::Duration::from_secs(1));
+                value += n;
+                yield value;
+            }
+        }
+    }
+
+    async fn ws_state(&self, judge_uuid: Uuid) -> impl Stream<Item = Submission> {
+        APPDATA
+            .judge_addr
+            .send(SubscribeMessage::Subscribe(judge_uuid))
+            .await
+            .unwrap()
     }
 }

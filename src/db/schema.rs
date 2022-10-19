@@ -40,7 +40,7 @@ diesel::table! {
         user_pk -> Uuid,
         task_pk -> Uuid,
         lang_uuid -> Uuid,
-        issued_at -> Nullable<Timestamptz>,
+        issued_at -> Timestamptz,
     }
 }
 

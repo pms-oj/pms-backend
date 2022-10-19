@@ -2,6 +2,7 @@ pub mod accounts;
 pub mod constants;
 pub mod graphql;
 pub mod handshake;
+pub mod judge;
 
 use async_graphql::*;
 use serde::{Deserialize, Serialize};

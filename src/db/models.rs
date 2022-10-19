@@ -95,7 +95,7 @@ pub struct ContestAccessibleTeam {
 #[derive(Clone, Debug, Serialize, Deserialize, Insertable, Queryable)]
 #[table_name = "submissions"]
 pub struct Submission {
-    pub pk: Uuid,
+    pub pk: Uuid, // judge uuid
     pub user_pk: Uuid,
     pub task_pk: Uuid,
     pub lang_uuid: Uuid,

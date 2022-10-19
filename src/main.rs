@@ -48,78 +48,77 @@ lazy_static! {
         info!("Loaded PMS backend config file");
         toml::from_str(&s).expect("Some error occured")
     };
+    static ref APPDATA: Arc<WebData> = {
+        log4rs::init_file(LOG_CONFIG_FILE, Default::default()).unwrap();
+        info!("pms-backend {}", env!("CARGO_PKG_VERSION"));
+        let db_threads = CONFIG.general.db_threads.unwrap_or_else(|| num_cpus::get());
+        info!(
+            "Starting key-based database service of {} threads",
+            db_threads
+        );
+        let source_db = KeyDbService::start(SOURCE_DATABASE, db_threads);
+        let judge_db = KeyDbService::start(JUDGE_DATABASE, db_threads);
+        let master_cfg = pms_master::config::Config {
+            host: CONFIG.host.host.clone(),
+            host_pass: CONFIG.host.host_pass.clone(),
+        };
+        let judge_service = JudgeService {
+            judge_addrs: HashMap::new(),
+        };
+        let judge_addr = judge_service.start();
+        let handler_service = HandlerService {
+            cfg: master_cfg,
+            event_addr: judge_addr.clone(),
+            state: None,
+        };
+        let handler_addr = handler_service.start();
+        let state = WebState { handler_addr };
+        Arc::new(WebData {
+            state,
+            judge_addr: judge_addr,
+            source_db,
+            judge_db,
+        })
+    };
 }
 
 #[derive(Clone)]
-pub struct WebState<T>
-where
-    T: Actor + Handler<EventMessage>,
-    <T as actix::Actor>::Context: ToEnvelope<T, EventMessage>,
-{
-    handler_addr: Addr<HandlerService<T>>,
+pub struct WebState {
+    pub handler_addr: Addr<HandlerService<JudgeService>>,
 }
 
 #[derive(Clone)]
-pub struct WebData<T: Controller + Unpin + 'static, U>
-where
-    U: Actor + Handler<EventMessage>,
-    <U as actix::Actor>::Context: ToEnvelope<U, EventMessage>,
-{
-    state: WebState<U>,
-    judge_addr: Addr<JudgeService>,
-    source_db: Addr<KeyDbService<T>>,
+pub struct WebData {
+    pub state: WebState,
+    pub judge_addr: Addr<JudgeService>,
+    pub source_db: Addr<KeyDbService>,
+    pub judge_db: Addr<KeyDbService>,
+}
+
+impl WebData {
+    fn touch(&self) {
+        println!("WebData is touched!");
+    }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    log4rs::init_file(LOG_CONFIG_FILE, Default::default()).unwrap();
-    info!("pms-backend {}", env!("CARGO_PKG_VERSION"));
-    let source_db = KeyDbService::start(connect(
-        SOURCE_DATABASE,
-        MAX_FILE_SIZE_KB,
-        VACUUM_INTERVAL_SEC,
-    )?);
-    let master_cfg = pms_master::config::Config {
-        host: CONFIG.host.host.clone(),
-        host_pass: CONFIG.host.host_pass.clone(),
-    };
-    let judge_man = JudgeMan {
-        judge_addrs: HashMap::new(),
-    };
-    let judge_service = JudgeService {
-        judge_man,
-        handler_addr: None,
-    };
-    let judge_addr = judge_service.start();
-    let handler_service = HandlerService {
-        cfg: master_cfg,
-        event_addr: judge_addr.clone(),
-        state: None,
-    };
-    let handler_addr = handler_service.start();
-    judge_addr
-        .send(JudgeMessage::RegisterHandler(handler_addr.clone()))
-        .await
-        .ok();
-    let state = WebState { handler_addr };
-    let data = Arc::new(WebData {
-        state,
-        judge_addr: judge_addr,
-        source_db,
-    });
+    APPDATA.touch();
     if CONFIG.web.enable_gql_playground {
         info!(
-            "GraphiQL IDE is arrived: http://{}/api/gql_playground",
+            "GraphiQL IDE is arrived: http://{}/api/gql",
             CONFIG.web.host.clone()
         );
     }
     let secret_key = Key::generate();
     let redis_store = RedisSessionStore::new(CONFIG.redis.url.clone())
         .await
-        .unwrap();
+        .expect(&format!(
+            "Unable to connect redis {}",
+            CONFIG.redis.url.clone()
+        ));
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(data.clone()))
             .wrap(middleware::Logger::default())
             .wrap(IdentityMiddleware::default())
             .wrap(SessionMiddleware::new(
@@ -142,11 +141,11 @@ async fn main() -> std::io::Result<()> {
                     .service(web::scope("/handshake").service(api::handshake::ping))
                     .service(
                         web::resource("/gql")
-                            .guard(guard::Any(guard::Post()).or(guard::Get()))
+                            .guard(guard::Post())
                             .to(api::graphql::gql_endpoint),
                     )
                     .service(
-                        web::resource("/gql_playground")
+                        web::resource("/gql")
                             .guard(guard::Get())
                             .to(api::graphql::gql_playground),
                     ),

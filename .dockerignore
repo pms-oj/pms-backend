@@ -1,0 +1,5 @@
+/target
+config.toml
+log4rs.yaml
+/log
+/data
