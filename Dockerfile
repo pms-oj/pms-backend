@@ -8,7 +8,7 @@ RUN apt upgrade -y && \
 RUN mkdir -p /app
 
 WORKDIR /opt/pms-backend
-RUN cargo install --path .
+RUN cargo install
 RUN cargo install diesel_cli --no-default-features --features postgres
 
 WORKDIR /app
