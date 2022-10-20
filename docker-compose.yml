@@ -2,8 +2,7 @@ version: "3"
 
 services:
   pms-backend:
-    build: .
-    image: pms-backend
+    image: docker.astar.moe/pms-backend:202
     restart: always
     volumes:
       - ./config.toml:/app/config.toml

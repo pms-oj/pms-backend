@@ -12,7 +12,7 @@ pub enum KeyDbResponse {
 
 #[derive(Clone, Debug, Message)]
 #[rtype(result = "KeyDbResponse")]
-// CRUD operation
+// CRUD(CD) operation
 pub enum KeyDbMessage {
     Insert(Uuid, String),
     Get(Uuid),
