@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Docker Image CI (Arm64)
 
 on:
   push:
@@ -23,4 +23,4 @@ jobs:
           dockerUser: ${{ secrets.REGISTRY_USER }}
           dockerPassword: ${{ secrets.REGISTRY_PASSWORD }}
           dockerServer: ${{ secrets.REGISTRY_HOST }}
-          platform: linux/amd64,linux/arm64
+          platform: linux/arm64
