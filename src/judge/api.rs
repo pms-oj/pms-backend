@@ -41,11 +41,11 @@ pub struct Submission {
 
 impl Submission {
     pub fn to_json(&self) -> String {
-        simd_json::to_string(&self).unwrap()
+        serde_json::to_string(&self).unwrap()
     }
 
     pub fn from_json(raw: String) -> Self {
-        simd_json::serde::from_borrowed_value(raw.into()).unwrap()
+        serde_json::from_str(&raw).unwrap()
     }
 }
 
