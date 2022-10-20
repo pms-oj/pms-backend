@@ -2,13 +2,13 @@ version: "3"
 
 services:
   pms-backend:
-    image: docker.astar.moe/pms-backend:202
+    image: docker.astar.moe/pms-backend:latest
     restart: always
     volumes:
-      - ./config.toml:/app/config.toml
-      - ./log4rs.yaml:/app/log4rs.yaml
-      - ./data:/app/data
-      - ./log:/app/log
+      - ./config.toml:/app/config.toml:z
+      - ./log4rs.yaml:/app/log4rs.yaml:z
+      - ./data:/app/data:z
+      - ./log:/app/log:z
     environment: 
       DATABASE_URL: postgres://postgres:testserver@db/pms
     networks:
@@ -33,9 +33,11 @@ services:
     restart: always
     environment:
       POSTGRES_PASSWORD: testserver
+    volumes:
+      - ./pg-data:/var/lib/postgresql/data:z
     networks:
       - pms-backend-network
 
 networks:
   pms-backend-network:
-    driver: overlay
+    driver: bridge
