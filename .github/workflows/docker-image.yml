@@ -7,12 +7,18 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  build:
-
+  buildx:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag pms-backend:$(date +%s)
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      - 
+        name: Build and publish image
+        uses: ilteoood/docker_buildx@master
+        with:
+          publish: true
+            imageName: pms-backend:$(date +%s)
+            dockerUser: ${{ secrets.REGISTRY_USER }}
+            dockerPassword: ${{ secrets.REGISTRY_PASSWORD }}
+            platform: linux/amd64,linux/arm64
