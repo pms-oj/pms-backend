@@ -18,7 +18,8 @@ jobs:
         uses: ilteoood/docker_buildx@master
         with:
           publish: true
-          imageName: pms-backend:$(date +%s)
+          imageName: pms-backend
+          tag: $(date +%s)
           dockerUser: ${{ secrets.REGISTRY_USER }}
           dockerPassword: ${{ secrets.REGISTRY_PASSWORD }}
           dockerServer: ${{ secrets.REGISTRY_HOST }}
