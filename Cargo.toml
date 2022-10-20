@@ -32,7 +32,7 @@ thiserror = "1"
 actix = "0.13"
 futures-util = "0.3"
 num_cpus = "1.13.1"
-simd-json = "0.6.0"
+simd-json = { git = "https://github.com/simd-lite/simd-json.git", rev = "90144db" }
 
 [dependencies.uuid]
 version = "1.1.2"
