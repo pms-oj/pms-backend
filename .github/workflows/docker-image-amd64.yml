@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Docker Image CI (AMD64)
 
 on:
   push:
@@ -32,5 +32,5 @@ jobs:
         with:
           context: ./
           push: true
-          tags: pms-backend:latest
+          tags: docker.astar.moe/pms-backend:latest
           platforms: linux/amd64
